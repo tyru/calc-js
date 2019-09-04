@@ -19,6 +19,15 @@
         return "(add " + this._left.toString() + " " + this._right.toString() + ")";
       }
     },
+    Sub: class Sub {
+      constructor(left, right) {
+        this._left = left;
+        this._right = right;
+      }
+      toString() {
+        return "(sub " + this._left.toString() + " " + this._right.toString() + ")";
+      }
+    },
   };
 
   class Source {
@@ -124,19 +133,23 @@
   }
 
   // expr = plus
-  // plus = number ("+" plus)?
+  // plus = number (("+" / "-") plus)?
   // number = ("0" - "9")+
   function parse(source) {
     return parsePlus(source);
   }
 
   function parsePlus(source) {
-    let left = parseNumber(source);
-    if (!source.accept('+')) {
+    const left = parseNumber(source);
+    if (source.accept('+')) {
+      source.emit();
+      return new Node.Add(left, parsePlus(source));
+    } else if (source.accept('-')) {
+      source.emit();
+      return new Node.Sub(left, parsePlus(source));
+    } else {
       return left;
     }
-    let right = parsePlus(source);
-    return new Node.Add(left, right);
   }
 
   function parseNumber(source) {
