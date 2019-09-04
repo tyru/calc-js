@@ -6,6 +6,9 @@
       constructor(value) {
         this._value = value;
       }
+      eval() {
+        return this._value;
+      }
       toString() {
         return this._value.toString();
       }
@@ -13,6 +16,9 @@
     Group: class Group {
       constructor(node) {
         this._node = node;
+      }
+      eval() {
+        return this._node.eval();
       }
       toString() {
         return "(group " + this._node.toString() + ")";
@@ -23,6 +29,9 @@
         this._left = left;
         this._right = right;
       }
+      eval() {
+        return this._left.eval() + this._right.eval();
+      }
       toString() {
         return "(add " + this._left.toString() + " " + this._right.toString() + ")";
       }
@@ -31,6 +40,9 @@
       constructor(left, right) {
         this._left = left;
         this._right = right;
+      }
+      eval() {
+        return this._left.eval() - this._right.eval();
       }
       toString() {
         return "(sub " + this._left.toString() + " " + this._right.toString() + ")";
@@ -41,6 +53,9 @@
         this._left = left;
         this._right = right;
       }
+      eval() {
+        return this._left.eval() * this._right.eval();
+      }
       toString() {
         return "(mul " + this._left.toString() + " " + this._right.toString() + ")";
       }
@@ -49,6 +64,9 @@
       constructor(left, right) {
         this._left = left;
         this._right = right;
+      }
+      eval() {
+        return this._left.eval() / this._right.eval();
       }
       toString() {
         return "(div " + this._left.toString() + " " + this._right.toString() + ")";
@@ -132,25 +150,36 @@
   function doTests() {
     let t = new UnitTest();
     [
-      ["0", "0"],
-      ["1", "1"],
-      ["42", "42"],
-      ["(0)", "(group 0)"],
-      ["(1)", "(group 1)"],
-      ["(42)", "(group 42)"],
-      ["12+34", "(add 12 34)"],
-      ["12-34", "(sub 12 34)"],
-      ["12*34", "(mul 12 34)"],
-      ["8/2", "(div 8 2)"],
-      ["1+2-3+4", "(add (sub (add 1 2) 3) 4)"],
-      ["1+2*3", "(add 1 (mul 2 3))"],
-      ["(1+2)*3", "(mul (group (add 1 2)) 3)"],
-      ["(1+2)-3+4", "(add (sub (group (add 1 2)) 3) 4)"],
-      ["(1*6)/3*4", "(mul (div (group (mul 1 6)) 3) 4)"],
-      ["1+(2-3)+4", "(add (add 1 (group (sub 2 3))) 4)"],
-      ["1*(6/3)*4", "(mul (mul 1 (group (div 6 3))) 4)"],
-      ["1+2-(3+4)", "(sub (add 1 2) (group (add 3 4)))"],
-      ["3*4/(1*2)", "(div (mul 3 4) (group (mul 1 2)))"],
+      ["0", "0", 0],
+      ["1", "1", 1],
+      ["42", "42", 42],
+      ["(0)", "(group 0)", 0],
+      ["(1)", "(group 1)", 1],
+      ["(42)", "(group 42)", 42],
+      ["12+34", "(add 12 34)", 46],
+      ["12-34", "(sub 12 34)", -22],
+      ["12*34", "(mul 12 34)", 408],
+      ["8/2", "(div 8 2)", 4],
+      ["1+2-3+4", "(add (sub (add 1 2) 3) 4)", 4],
+      ["1+2*3", "(add 1 (mul 2 3))", 7],
+      ["(1+2)*3", "(mul (group (add 1 2)) 3)", 9],
+      ["(1+2)-3+4", "(add (sub (group (add 1 2)) 3) 4)", 4],
+      ["(1*6)/3*4", "(mul (div (group (mul 1 6)) 3) 4)", 8],
+      ["1+(2-3)+4", "(add (add 1 (group (sub 2 3))) 4)", 4],
+      ["1*(6/3)*4", "(mul (mul 1 (group (div 6 3))) 4)", 8],
+      ["1+2-(3+4)", "(sub (add 1 2) (group (add 3 4)))", -4],
+      ["3*4/(1*2)", "(div (mul 3 4) (group (mul 1 2)))", 6],
+    ].forEach(([input, expectedNode, expectedResult]) => {
+      try {
+        const node = parse(new Source(input));
+        t.assert(node, "node must not be null: " + input);
+        if (node) {
+          t.assertEqual(expectedNode, node.toString(), "\ninput: " + input + "\nassert: parse()\n");
+          const result = node.eval();
+          t.assertEqual(expectedResult, result, "\ninput: " + input + "\nassert: eval()\n");
+        }
+      } catch (e) {
+        t.assert(false, "exception was thrown: " + (e.stack || e.toString()));
       }
     });
     return t.results();
@@ -164,7 +193,7 @@
     try {
       const node = parse(new Source(expr));
       if (node) {
-        $result.value = node.toString();
+        $result.value = node.eval().toString();
       }
     } catch (e) {
       $error.value = e.stack || e.toString();
