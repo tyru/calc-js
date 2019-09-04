@@ -28,6 +28,24 @@
         return "(sub " + this._left.toString() + " " + this._right.toString() + ")";
       }
     },
+    Mul: class Mul {
+      constructor(left, right) {
+        this._left = left;
+        this._right = right;
+      }
+      toString() {
+        return "(mul " + this._left.toString() + " " + this._right.toString() + ")";
+      }
+    },
+    Div: class Div {
+      constructor(left, right) {
+        this._left = left;
+        this._right = right;
+      }
+      toString() {
+        return "(div " + this._left.toString() + " " + this._right.toString() + ")";
+      }
+    },
   };
 
   class Source {
@@ -133,20 +151,34 @@
   }
 
   // expr = plus
-  // plus = number (("+" / "-") plus)?
+  // plus = mul (("+" / "-") plus)?
+  // mul = number (("*" / "/") mul)?
   // number = ("0" - "9")+
   function parse(source) {
     return parsePlus(source);
   }
 
   function parsePlus(source) {
-    const left = parseNumber(source);
+    const left = parseMul(source);
     if (source.accept('+')) {
       source.emit();
       return new Node.Add(left, parsePlus(source));
     } else if (source.accept('-')) {
       source.emit();
       return new Node.Sub(left, parsePlus(source));
+    } else {
+      return left;
+    }
+  }
+
+  function parseMul(source) {
+    const left = parseNumber(source);
+    if (source.accept('*')) {
+      source.emit();
+      return new Node.Mul(left, parseMul(source));
+    } else if (source.accept('/')) {
+      source.emit();
+      return new Node.Div(left, parseMul(source));
     } else {
       return left;
     }
