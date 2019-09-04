@@ -141,21 +141,16 @@
       ["12+34", "(add 12 34)"],
       ["12-34", "(sub 12 34)"],
       ["12*34", "(mul 12 34)"],
-      ["12/34", "(div 12 34)"],
-      ["1+2-3+4", "(add 1 (sub 2 (add 3 4)))"],
+      ["8/2", "(div 8 2)"],
+      ["1+2-3+4", "(add (sub (add 1 2) 3) 4)"],
       ["1+2*3", "(add 1 (mul 2 3))"],
       ["(1+2)*3", "(mul (group (add 1 2)) 3)"],
-      ["(1+2)-3+4", "(sub (group (add 1 2)) (add 3 4))"],
-      ["(1*2)/3*4", "(div (group (mul 1 2)) (mul 3 4))"],
-      ["1+(2-3)+4", "(add 1 (add (group (sub 2 3)) 4))"],
-      ["1*(2/3)*4", "(mul 1 (mul (group (div 2 3)) 4))"],
-      ["1+2-(3+4)", "(add 1 (sub 2 (group (add 3 4))))"],
-      ["1*2/(3*4)", "(mul 1 (div 2 (group (mul 3 4))))"],
-    ].forEach(([input, expected]) => {
-      const node = parse(new Source(input));
-      t.assert(node, "node must not be null: " + input);
-      if (node) {
-        t.assertEqual(expected, node.toString(), "\ninput: " + input);
+      ["(1+2)-3+4", "(add (sub (group (add 1 2)) 3) 4)"],
+      ["(1*6)/3*4", "(mul (div (group (mul 1 6)) 3) 4)"],
+      ["1+(2-3)+4", "(add (add 1 (group (sub 2 3))) 4)"],
+      ["1*(6/3)*4", "(mul (mul 1 (group (div 6 3))) 4)"],
+      ["1+2-(3+4)", "(sub (add 1 2) (group (add 3 4)))"],
+      ["3*4/(1*2)", "(div (mul 3 4) (group (mul 1 2)))"],
       }
     });
     return t.results();
@@ -177,37 +172,43 @@
   }
 
   // expr = plus
-  // plus = mul (("+" / "-") plus)?
-  // mul = number_or_expr (("*" / "/") mul)?
+  // plus = mul (("+" / "-") mul)*
+  // mul = number_or_expr (("*" / "/") number_or_expr)?
   // number_or_expr =  "(" expr ")" / ("0" - "9")+
   function parse(source) {
     return parsePlus(source);
   }
 
   function parsePlus(source) {
-    const left = parseMul(source);
-    if (source.accept('+')) {
-      source.emit();
-      return new Node.Add(left, parsePlus(source));
-    } else if (source.accept('-')) {
-      source.emit();
-      return new Node.Sub(left, parsePlus(source));
-    } else {
-      return left;
+    let node = parseMul(source);
+    while (true) {
+      if (source.accept('+')) {
+        source.emit();
+        node = new Node.Add(node, parseMul(source));
+      } else if (source.accept('-')) {
+        source.emit();
+        node = new Node.Sub(node, parseMul(source));
+      } else {
+        break;
+      }
     }
+    return node;
   }
 
   function parseMul(source) {
-    const left = parseNumberOrExpr(source);
-    if (source.accept('*')) {
-      source.emit();
-      return new Node.Mul(left, parseMul(source));
-    } else if (source.accept('/')) {
-      source.emit();
-      return new Node.Div(left, parseMul(source));
-    } else {
-      return left;
+    let node = parseNumberOrExpr(source);
+    while (true) {
+      if (source.accept('*')) {
+        source.emit();
+        node = new Node.Mul(node, parseNumberOrExpr(source));
+      } else if (source.accept('/')) {
+        source.emit();
+        node = new Node.Div(node, parseNumberOrExpr(source));
+      } else {
+        break;
+      }
     }
+    return node;
   }
 
   function parseNumberOrExpr(source) {
