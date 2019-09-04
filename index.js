@@ -123,14 +123,19 @@
     }
   }
 
-  // expr = number ("+" number)
+  // expr = plus
+  // plus = number ("+" plus)?
   // number = ("0" - "9")+
   function parse(source) {
+    return parsePlus(source);
+  }
+
+  function parsePlus(source) {
     let left = parseNumber(source);
     if (!source.accept('+')) {
       return left;
     }
-    let right = parseNumber(source);
+    let right = parsePlus(source);
     return new Node.Add(left, right);
   }
 
