@@ -82,7 +82,7 @@
     try {
       const errors = doTests();
       if (errors.length > 0) {
-        $result.value = errors.map(e => e.toString()).join('\n');
+        $result.value = errors.map(e => "* " + e.toString()).join('\n');
         $result.classList.add('error');
       } else {
         $result.value = '👍';
@@ -102,14 +102,15 @@
     }
     assert(cond, msg) {
       if (!cond) {
-        this._results.push("fail: " + msg);
+        this._results.push("FAIL: " + msg);
       }
     }
-    assertEqual(expected, got) {
+    assertEqual(expected, got, msg) {
       if (expected !== got) {
         this._results.push(
-          "expected '" + expected.toString() +
-          "' but got '" + got.toString() + "'");
+          "FAIL:\n" +
+          "expected: " + expected.toString() +
+          "\ngot: " + got.toString() + msg);
       }
     }
   }
@@ -129,7 +130,7 @@
       const node = parse(new Source(input));
       t.assert(node, "node must not be null: " + input);
       if (node) {
-        t.assertEqual(expected, node.toString());
+        t.assertEqual(expected, node.toString(), "\ninput: " + input);
       }
     });
     return t.results();
@@ -193,4 +194,6 @@
 
   document.getElementById('expression')
     .addEventListener('keyup', (e) => calculate(e.target.value));
+  document.getElementById('run-tests')
+    .addEventListener('click', () => runTests());
 })();

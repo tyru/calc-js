@@ -4,11 +4,24 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Calculator</title>
+    <style>
+    .textarea {
+      margin: 0px;
+      height: 130px;
+      width: 390px;
+    }
+    .error {
+      color: red;
+    }
+    </style>
   </head>
   <body>
     式: <input type='text' id='expression'><br>
     結果: <input type='text' id='result' readonly><br>
-    エラー: <textarea id='error' style='color: red; margin: 0px; height: 130px; width: 390px;' readonly></textarea>
+    エラー: <textarea id='error' class='error textarea' readonly></textarea><br>
+    <br>
+    <button id='run-tests'>Run Tests</button><br>
+    テスト結果: <textarea id='test-result' class='textarea' readonly></textarea>
   </body>
   <script src='./index.js'></script>
 </html>
