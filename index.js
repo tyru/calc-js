@@ -1,118 +1,144 @@
 (function () {
   'use strict';
 
-  // expr = ws plus ws
-  // plus = multiply ws ('+' ws plus)? | multiply ws ('-' ws plus)?
-  // multiply = atom ws ('*' ws multiply)? | atom ws ('/' ws multiply)?
-  // atom = sign ws ('0' - '9') | sign ws ('1' - '9') ('0' - '9')* | '(' ws expr ws ')'
-  // ws = (' ' | '\t' | '\r' | '\n')*
-  // sign = '+' | '-'
+  const Node = {
+    Number: class Number {
+      constructor(value) {
+        this._value = value;
+      }
+      toString() {
+        return this._value.toString();
+      }
+    },
+    Add: class Add {
+      constructor(left, right) {
+        this._left = left;
+        this._right = right;
+      }
+      toString() {
+        return "(add " + this._left.toString() + " " + this._right.toString() + ")";
+      }
+    },
+  };
+
+  class Source {
+    constructor(source) {
+      this._prev = 0;
+      this._pos = 0;
+      this._chars = [...source];
+    }
+    accept(charset) {
+      if (this._pos >= this._chars.length) {
+        return false;    // eof
+      }
+      const c = this._chars[this._pos];
+      if (charset.indexOf(c) != -1) {
+        this._pos++;
+        return true;
+      }
+      return false;
+    }
+    emit() {
+      if (this._prev === this._pos) {
+        throw new Error("no character(s) were accepted");
+      }
+      let str = this._chars.slice(this._prev, this._pos).join('');
+      this._prev = this._pos;
+      return str;
+    }
+  }
+
+  function runTests(expr) {
+    const $result = document.getElementById('test-result');
+    $result.value = '';
+    $result.classList.remove('error');
+    try {
+      const errors = doTests();
+      if (errors.length > 0) {
+        $result.value = errors.map(e => e.toString()).join('\n');
+        $result.classList.add('error');
+      } else {
+        $result.value = '👍';
+      }
+    } catch (e) {
+      $result.value = e.stack || e.toString();
+      $result.classList.add('error');
+    }
+  }
+
+  class UnitTest {
+    constructor() {
+      this._results = [];
+    }
+    results() {
+      return this._results;
+    }
+    assert(cond, msg) {
+      if (!cond) {
+        this._results.push("fail: " + msg);
+      }
+    }
+    assertEqual(expected, got) {
+      if (expected !== got) {
+        this._results.push(
+          "expected '" + expected.toString() +
+          "' but got '" + got.toString() + "'");
+      }
+    }
+  }
+
+  function doTests() {
+    let t = new UnitTest();
+    [
+      ["0", "0"],
+      ["1", "1"],
+      ["42", "42"],
+      ["12+34", "(add 12 34)"],
+      ["12-34", "(sub 12 34)"],
+      ["12*34", "(mul 12 34)"],
+      ["12/34", "(div 12 34)"],
+      ["1+2-3+4", "(add 1 (sub 2 (add 3 4)))"],
+    ].forEach(([input, expected]) => {
+      const node = parse(new Source(input));
+      t.assert(node, "node must not be null: " + input);
+      if (node) {
+        t.assertEqual(expected, node.toString());
+      }
+    });
+    return t.results();
+  }
+
   function calculate(expr) {
     const $result = document.getElementById('result');
     const $error = document.getElementById('error');
     $result.value = '';
     $error.value = '';
     try {
-      const [result, rest] = parseExpr(expr);
-      if (rest.length !== 0) {
-        throw new Error('trailing expression(s) exist');
+      const node = parse(new Source(expr));
+      if (node) {
+        $result.value = node.toString();
       }
-      $result.value = result();
     } catch (e) {
-      $error.value = e;
+      $error.value = e.stack || e.toString();
     }
   }
 
-  function parseExpr(expr) {
-    expr = skipSpace(expr);
-    const [result, rest] = parsePlus(expr);
-    rest = skipSpace(rest);
-    return [result, rest];
+  // expr = number ("+" number)
+  // number = ("0" - "9")+
+  function parse(source) {
+    let left = parseNumber(source);
+    if (!source.accept('+')) {
+      return left;
+    }
+    let right = parseNumber(source);
+    return new Node.Add(left, right);
   }
 
-  function parsePlus(expr) {
-    let rest;
-    const [lhs, rest] = parseMultiply(expr);
-    rest = skipSpace(rest);
-    if (rest === '') {
-      return lhs;
-    }
-    const c = rest.charAt(0);
-    if (c === '+' || c === '-') {
-      rest = skipSpace(rest);
-      const [rhs, rest] = parsePlus(rest.slice(1));
-      return [c === '+' ? () => lhs() + rhs() : () => lhs() - rhs(), rest];
-    } else {
-      throw new Error('invalid expression: expected "+" or "-" but got "' + c + '"');
-    }
-  }
-
-  function parseMultiply(expr) {
-    let rest;
-    const [lhs, rest] = parseAtom(expr);
-    rest = skipSpace(rest);
-    if (rest === '') {
-      return lhs;
-    }
-    const c = rest.charAt(0);
-    if (c === '*' || c === '/') {
-      rest = skipSpace(rest);
-      const [rhs, rest] = parseMultiply(rest.slice(1));
-      return [c === '*' ? () => lhs() * rhs() : () => lhs() / rhs(), rest];
-    }
-    throw new Error('invalid expression: expected "*" or "/" but got "' + c + '"');
-  }
-
-  function parseAtom(expr) {
-    if (expr === '') {
-      throw new Error('empty expression');
-    }
-    let minus = 1;
-    switch (expr.charAt(0)) {
-      case '-':
-        minus = -1;
-      case '+':
-        expr = skipSpace(expr.slice(1));
-    }
-    const c = expr.charAt(0);
-    if (isDigit(c)) {
-      let pos = 1;
-      while (isDigit(expr.charAt(pos))) {
-        pos++;
-      }
-      const s = expr.slice(0, pos);
-      const n = parseInt(s, 10);
-      return () => minus * n;
-    } else if (c === '(') {
-      const [result, rest] = parseExpr(skipSpace(expr.slice(1)));
-      rest = skipSpace(rest);
-      if (c !== ')') {
-        throw new Error('expected ")" but got "' + c + '"');
-      }
-      return [() => minus * result(), rest];
-    }
-    throw new Error('expected digit or "(" but got "' + c + '"');
-  }
-
-  function skipSpace(str) {
-    return str.trimLeft();
-  }
-
-  function isDigit(c) {
-    switch (c) {
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        return true;
-    }
-    return false;
+  function parseNumber(source) {
+    while (source.accept('0123456789'))
+      ;
+    const n = parseInt(source.emit(), 10);
+    return new Node.Number(n);
   }
 
   document.getElementById('expression')
