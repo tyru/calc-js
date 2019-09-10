@@ -201,9 +201,10 @@
   }
 
   // expr = plus
-  // plus = mul (("+" / "-") mul)*
-  // mul = number_or_expr (("*" / "/") number_or_expr)?
-  // number_or_expr =  "(" expr ")" / ("0" - "9")+
+  // plus = mul *(("+" / "-") mul)
+  // mul = number_or_expr *(("*" / "/") number_or_expr)
+  // number_or_expr = "(" expr ")" / number
+  // number = 1*("0" / "1" / "2" / "3" / "4" / "5" / "6" / "7" / "8" / "9")
   function parse(source) {
     return parsePlus(source);
   }
